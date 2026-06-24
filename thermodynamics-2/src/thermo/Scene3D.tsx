@@ -603,12 +603,7 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
     capR.rotation.z = -Math.PI / 2;
     scene.add(capR);
 
-    // Level glass
-    const glassGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.5, 8);
-    const glassMat = new THREE.MeshStandardMaterial({color: 0x88ccff, metalness: 0.1, roughness: 0.1, transparent: true, opacity: 0.6});
-    const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(22, 14, 9.8);
-    scene.add(glass);
+
 
     // Nozzles on drum
     const nozzleGeo = new THREE.CylinderGeometry(0.25, 0.35, 0.5, 12);
@@ -655,34 +650,23 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
       scene.add(leg);
     });
 
-    // Diagonal braces
-    const braceMat = makeMetalMat(0x445566);
-    [[-3, -2], [-3, 2], [3, -2], [3, 2]].forEach(([dx, dz]) => {
-      const braceGeo = new THREE.CylinderGeometry(0.06, 0.06, 7, 4);
-      const brace = new THREE.Mesh(braceGeo, braceMat);
-      brace.position.set(22 + dx * 0.5, 6, 8 + dz * 0.5);
-      brace.rotation.z = dz > 0 ? 0.15 : -0.15;
-      brace.rotation.x = dx > 0 ? 0.1 : -0.1;
-      scene.add(brace);
-    });
-
-    // ===== CIRCULATION PUMP SUPPORT PLATFORM =====
+    // ===== CIRCULATION PUMP SUPPORT PLATFORM (ground level) =====
     const cpPlatMat = makeMetalMat(0x556677);
 
     // Platform deck
     const cpPlatGeo = new THREE.BoxGeometry(4, 0.15, 3);
     const cpPlat = new THREE.Mesh(cpPlatGeo, cpPlatMat);
-    cpPlat.position.set(15.5, 8, 8);
+    cpPlat.position.set(15.5, 2.6, 6);
     cpPlat.castShadow = true;
     cpPlat.receiveShadow = true;
     scene.add(cpPlat);
 
     // Four legs
-    const cpLegH = 8;
+    const cpLegH = 2.6;
     const cpLegGeo = new THREE.CylinderGeometry(0.1, 0.12, cpLegH, 6);
     [[-1.5, -1], [-1.5, 1], [1.5, -1], [1.5, 1]].forEach(([dx, dz]) => {
       const leg = new THREE.Mesh(cpLegGeo, cpPlatMat);
-      leg.position.set(15.5 + dx, cpLegH / 2, 8 + dz);
+      leg.position.set(15.5 + dx, cpLegH / 2, 6 + dz);
       leg.castShadow = true;
       scene.add(leg);
     });
@@ -1161,50 +1145,74 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
 
     createFlange(scene, fpPumpOx, fpPumpOy, 8, 0.35, 0.08);
 
-    // ===== EVAPORATOR OUTLET → STEAM DRUM (sweeping arc) =====
+    // ===== EVAPORATOR OUTLET → STEAM DRUM (sweeping arc, routes around platform) =====
     const evPipeR = 0.35;
     const evPipeMat = makeMetalMat(0xffaa00);
     const evDrumX = 20.5, evDrumY = 14, evDrumZ = 8;
 
     createPipe(scene, [
       [11.8, 8.5, 0],
+      [12.5, 8.5, 0],
       [13, 8.5, 0.5],
-      [15, 9.5, 2],
-      [17, 11, 4],
-      [19, 12.5, 5.5],
-      [20.5, 13.5, 7],
-      [22, 14, 8],
+      [15, 9.5, 1.5],
+      [17, 11, 3],
+      [18, 12.5, 4],
+      [18, 14, 5],
+      [19, 15, 6.5],
+      [20, 15, 7.5],
+      [21, 14.5, 8],
+      [19, 13, 8],
     ], evPipeR, 0xffaa00);
 
-    createFlange(scene, 22, 14, 8, 0.4, 0.08);
+    createFlange(scene, 19, 13, 8, 0.4, 0.08);
 
-    // ===== STEAM DRUM → EVAPORATOR (downcomer, sweeping arc) =====
+    // ===== STEAM DRUM → EVAPORATOR (downcomer, routes to ground-level pump) =====
     createPipe(scene, [
       [22, 13, 8],
-      [20.5, 12, 8],
-      [18, 10.5, 8],
-      [15.5, 9.5, 8],
-      [13.5, 8.5, 6],
-      [12, 8.5, 4],
-      [11.8, 8.5, 2],
+      [22, 14.5, 9.5],
+      [21, 15, 11],
+      [19.5, 15, 12.5],
+      [18, 14, 12],
+      [17, 11, 10],
+      [16, 7, 8],
+      [15.5, 4, 6],
+      [15.5, 3.4, 6],
     ], evPipeR, 0xffaa00);
 
-    // Circulation pump on downcomer
-    createPump(scene, 15.5, 9.5, 8, 1.0, 0xcc3333, 'circPump');
+    // Circulation pump on ground-level platform
+    createPump(scene, 15.5, 3.4, 6, 1.0, 0xcc3333, 'circPump');
 
-    // ===== ECONOMIZER OUTLET → STEAM DRUM (sweeping arc) =====
+    // Downcomer continuation: pump → evaporator
+    createPipe(scene, [
+      [15.5, 3.4, 6],
+      [14, 4, 5],
+      [13, 5, 4],
+      [12, 6.5, 3],
+      [11.8, 8, 2],
+    ], evPipeR, 0xffaa00);
+
+    // Downcomer continuation: pump → evaporator
+    createPipe(scene, [
+      [15, 3.3, 6],
+      [14, 4, 5],
+      [13, 5, 4],
+      [12, 6.5, 3],
+      [11.8, 8, 2],
+    ], evPipeR, 0xffaa00);
+
+    // ===== ECONOMIZER OUTLET → STEAM DRUM (routes around platform) =====
     const ecPipeR = 0.25;
 
     createPipe(scene, [
       [11.8, 4.25, 0],
+      [12.5, 4.25, 0],
       [13, 4.25, 0.5],
-      [14.5, 5.5, 2],
-      [16, 7.5, 3.5],
-      [18, 10, 5],
-      [19.5, 12, 6.5],
-      [evDrumX - 1, evDrumY - 2, evDrumZ - 1],
-      [evDrumX, evDrumY - 1, evDrumZ],
-      [evDrumX, evDrumY, evDrumZ],
+      [14.5, 5.5, 1.5],
+      [16, 7.5, 3],
+      [17.5, 10, 4],
+      [18, 12, 5],
+      [19, 13, 6.5],
+      [19, 12.5, 8],
     ], ecPipeR, 0x4488cc);
 
     // ===== SUPERHEATER OUTLET → TURBINE INLET (sweeping arc) =====
@@ -1213,6 +1221,7 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
 
     createPipe(scene, [
       [11.8, 11.5, 0],
+      [12.5, 11.5, 0],
       [13, 11.5, 0.3],
       [14.5, 10.5, 0.6],
       [15.5, 9, 0.5],
@@ -1439,7 +1448,23 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
     endB.position.set(rcx, 0.15, rcz + rl / 2 + 1.5);
     scene.add(endB);
 
+    // Condenser discharge pipe to river (straight)
+    createPipe(scene, [
+      [35.5, 3.5, 9],
+      [37.5, 2.5, 9],
+      [39, 1.5, 9],
+      [rcx - rw / 2, 0.5, 9],
+    ], 0.4, 0x2255aa);
 
+    // Condenser intake pipe from river (straight)
+    createPipe(scene, [
+      [35.5, 2.5, 10],
+      [37.5, 1.5, 10],
+      [39, 0.5, 10],
+      [rcx - rw / 2, 0.3, 10],
+    ], 0.35, 0x3366aa);
+
+    createPump(scene, 38, 1.5, 10, 1.0, 0x3366aa, 'seaWaterPump');
 
   }, []);
 
