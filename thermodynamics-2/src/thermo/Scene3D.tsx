@@ -738,17 +738,7 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
     scene.add(condShell);
     components.condenser = condShell;
 
-    // Water boxes on ends
-    const waterBoxGeo = new THREE.CylinderGeometry(2.2, 2.2, 1, 20);
-    const waterBoxMat = makeMetalMat(0x2266aa);
-    const wb1 = new THREE.Mesh(waterBoxGeo, waterBoxMat);
-    wb1.position.set(29.5, 2.5, 9);
-    wb1.rotation.z = Math.PI / 2;
-    scene.add(wb1);
-    const wb2 = new THREE.Mesh(waterBoxGeo, waterBoxMat);
-    wb2.position.set(34.5, 2.5, 9);
-    wb2.rotation.z = Math.PI / 2;
-    scene.add(wb2);
+    // Water boxes removed
 
     // Tube bundle visible through cutaway hint
     for (let r = 0; r < 3; r++) {
