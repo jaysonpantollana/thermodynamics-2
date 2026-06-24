@@ -650,25 +650,44 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
       scene.add(leg);
     });
 
-    // ===== CIRCULATION PUMP SUPPORT PLATFORM (ground level) =====
+    // ===== CIRCULATION PUMP SUPPORT PLATFORM =====
     const cpPlatMat = makeMetalMat(0x556677);
 
     // Platform deck
     const cpPlatGeo = new THREE.BoxGeometry(4, 0.15, 3);
     const cpPlat = new THREE.Mesh(cpPlatGeo, cpPlatMat);
-    cpPlat.position.set(15.5, 2.6, 6);
+    cpPlat.position.set(15.5, 4.5, 6);
     cpPlat.castShadow = true;
     cpPlat.receiveShadow = true;
     scene.add(cpPlat);
 
+    // Cross beams
+    [-1, 0, 1].forEach(dz => {
+      const beamGeo = new THREE.BoxGeometry(4, 0.12, 0.12);
+      const beam = new THREE.Mesh(beamGeo, cpPlatMat);
+      beam.position.set(15.5, 4.5 - 0.13, 6 + dz);
+      scene.add(beam);
+    });
+
     // Four legs
-    const cpLegH = 2.6;
+    const cpLegH = 4.5;
     const cpLegGeo = new THREE.CylinderGeometry(0.1, 0.12, cpLegH, 6);
     [[-1.5, -1], [-1.5, 1], [1.5, -1], [1.5, 1]].forEach(([dx, dz]) => {
       const leg = new THREE.Mesh(cpLegGeo, cpPlatMat);
       leg.position.set(15.5 + dx, cpLegH / 2, 6 + dz);
       leg.castShadow = true;
       scene.add(leg);
+    });
+
+    // Diagonal braces
+    const cpBraceMat = makeMetalMat(0x445566);
+    [[-1.5, -1], [-1.5, 1], [1.5, -1], [1.5, 1]].forEach(([dx, dz]) => {
+      const braceGeo = new THREE.CylinderGeometry(0.05, 0.05, 5.5, 4);
+      const brace = new THREE.Mesh(braceGeo, cpBraceMat);
+      brace.position.set(15.5 + dx * 0.5, 2.5, 6 + dz * 0.5);
+      brace.rotation.z = dz > 0 ? 0.12 : -0.12;
+      brace.rotation.x = dx > 0 ? 0.08 : -0.08;
+      scene.add(brace);
     });
 
     // ===== TURBINE (industrial design) =====
@@ -1191,7 +1210,7 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
     ], evPipeR, 0xffaa00);
 
     // Circulation pump on ground-level platform
-    createPump(scene, 15.5, 3.4, 6, 1.0, 0xcc3333, 'circPump');
+    createPump(scene, 15.5, 5.5, 6, 1.0, 0xcc3333, 'circPump');
 
     // Downcomer continuation: pump → evaporator
     createPipe(scene, [
