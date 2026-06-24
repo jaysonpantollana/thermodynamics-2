@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinter Heat Recovery Power Plant - 3D Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0a0a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+canvas { display: block; }
+
+#loading-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 50%, #0a0a2e 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; transition: opacity 0.8s ease;
+}
+#loading-screen.hidden { opacity: 0; pointer-events: none; }
+#loading-screen h1 { color: #00d4ff; font-size: 28px; margin-bottom: 20px; text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+#loading-bar-container { width: 300px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+#loading-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #00d4ff, #00ff88); border-radius: 2px; transition: width 0.3s; }
+#loading-text { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 15px; }
+
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 50px;
+  background: rgba(10,10,30,0.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; padding: 0 20px; z-index: 100;
+}
+#header h1 { color: #00d4ff; font-size: 16px; font-weight: 500; letter-spacing: 1px; }
+#header .subtitle { color: rgba(255,255,255,0.4); font-size: 11px; margin-left: 15px; letter-spacing: 0.5px; }
+
+#sidebar {
+  position: fixed; top: 50px; left: 0; width: 280px; bottom: 0;
+  background: rgba(10,10,30,0.9); backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(0,212,255,0.15);
+  z-index: 90; overflow-y: auto; padding: 15px;
+  transition: transform 0.3s ease;
+}
+#sidebar.collapsed { transform: translateX(-280px); }
+
+#toggle-sidebar {
+  position: fixed; top: 60px; left: 280px; width: 30px; height: 30px;
+  background: rgba(10,10,30,0.9); border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 0 5px 5px 0; color: #00d4ff; cursor: pointer;
+  z-index: 95; display: flex; align-items: center; justify-content: center;
+  transition: left 0.3s ease; font-size: 14px;
+}
+#toggle-sidebar.shifted { left: 0; }
+
+.section-title {
+  color: #00d4ff; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 2px; margin-bottom: 10px; padding-bottom: 5px;
+  border-bottom: 1px solid rgba(0,212,255,0.15);
+}
+
+.component-btn {
+  width: 100%; padding: 10px 12px; margin-bottom: 6px;
+  background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 6px; color: rgba(255,255,255,0.7); cursor: pointer;
+  text-align: left; font-size: 12px; transition: all 0.2s;
+  display: flex; align-items: center; gap: 10px;
+}
+.component-btn:hover { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.3); color: #fff; }
+.component-btn.active { background: rgba(0,212,255,0.2); border-color: #00d4ff; color: #00d4ff; }
+.component-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+#info-panel {
+  position: fixed; top: 50px; right: 0; width: 320px; bottom: 0;
+  background: rgba(10,10,30,0.92); backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(0,212,255,0.15);
+  z-index: 90; padding: 20px; overflow-y: auto;
+  transform: translateX(320px); transition: transform 0.3s ease;
+}
+#info-panel.visible { transform: translateX(0); }
+#info-panel h2 { color: #00d4ff; font-size: 18px; margin-bottom: 5px; }
+#info-panel .tag { display: inline-block; padding: 2px 8px; background: rgba(0,212,255,0.15); border-radius: 10px; color: #00d4ff; font-size: 10px; margin-bottom: 15px; }
+#info-panel p { color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.7; margin-bottom: 12px; }
+#info-panel .spec { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+#info-panel .spec-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+#info-panel .spec-value { color: rgba(255,255,255,0.8); font-size: 11px; }
+#close-info {
+  position: absolute; top: 15px; right: 15px; width: 24px; height: 24px;
+  background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+  color: rgba(255,255,255,0.5); cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+#close-info:hover { border-color: #ff4466; color: #ff4466; }
+
+
+
+
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <h1>SINTER HEAT RECOVERY PLANT</h1>
+  <div id="loading-bar-container"><div id="loading-bar"></div></div>
+  <div id="loading-text">Initializing 3D engine...</div>
+</div>
+
+<div id="header">
+  <h1>SINTER HEAT RECOVERY POWER PLANT</h1>
+  <span class="subtitle">Interactive 3D Process Visualization</span>
+</div>
+
+<button id="toggle-sidebar" onclick="toggleSidebar()">&#9776;</button>
+
+<div id="sidebar">
+  <div class="section-title">Power Generation</div>
+  <div id="power-buttons"></div>
+  <div class="section-title" style="margin-top:15px">Boiler System</div>
+  <div id="boiler-buttons"></div>
+  <div class="section-title" style="margin-top:15px">Cooling System</div>
+  <div id="cooling-buttons"></div>
+  <div class="section-title" style="margin-top:15px">Process Flow</div>
+  <div id="process-buttons"></div>
+  <div class="section-title" style="margin-top:15px">Controls</div>
+  <button id="flow-toggle" class="component-btn" onclick="toggleFlow()" style="justify-content:center;margin-top:5px">Flow: ON</button>
+</div>
+
+<div id="info-panel">
+  <button id="close-info" onclick="closeInfo()">&times;</button>
+  <div id="info-content"></div>
+</div>
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+const componentData = {
+  sinterMachine: {
+    name: 'Sintering Machine', category: 'power', color: 0xff6b35,
+    desc: 'The sintering machine processes raw iron ore fines, flux, and fuel into sinter through combustion at high temperatures. Hot exhaust gases at ~380\u00b0C are the primary heat source for the recovery system.',
+    specs: { 'Capacity': '550 t/h', 'Gas Temp': '380\u00b0C', 'Sinter Temp': '~1300\u00b0C', 'Type': 'Straight-line reciprocating grate' }
+  },
+  cooler: {
+    name: 'Cooler', category: 'power', color: 0xff8844,
+    desc: 'Cools the hot sinter after the sintering process. Air drawn through the cooler picks up heat that is then used by the boiler system for power generation.',
+    specs: { 'Inlet Temp': '~800\u00b0C', 'Outlet Temp': '~150\u00b0C', 'Type': 'Recirculating cooler', 'Air Flow': 'Countercurrent' }
+  },
+  boiler: {
+    name: 'Boiler (HRSG)', category: 'boiler', color: 0xffcc00,
+    desc: 'The Heat Recovery Steam Generator (HRSG) captures waste heat from sinter cooling exhaust gases to produce superheated steam. Contains superheater, evaporator, and economizer sections.',
+    specs: { 'Steam Output': '80 t/h', 'Pressure': '2.13 MPa', 'Gas Inlet': '380\u00b0C', 'Type': 'Once-through HRSG' }
+  },
+  superheater: {
+    name: 'Superheater', category: 'boiler', color: 0xff4444,
+    desc: 'Heats saturated steam from the drum to superheated steam at 380\u00b0C and 1.96 MPa. Located in the hottest zone of the boiler gas path to maximize heat transfer.',
+    specs: { 'Steam Out': '380\u00b0C', 'Pressure': '1.96 MPa', 'Heat Source': 'Hot exhaust gas', 'Type': 'Radiant + Convective' }
+  },
+  evaporator: {
+    name: 'Evaporator', category: 'boiler', color: 0xffaa00,
+    desc: 'Converts water from the economizer into saturated steam. The phase change occurs at ~215\u00b0C inside tubes exposed to hot exhaust gases.',
+    specs: { 'Temp': '~215\u00b0C', 'Pressure': '2.13 MPa', 'Quality': 'x = 0.25', 'Type': 'Natural circulation' }
+  },
+  economizer: {
+    name: 'Economizer', category: 'boiler', color: 0x44aaff,
+    desc: 'Preheats feedwater using low-temperature exhaust gases before entering the evaporator. Improves overall thermal efficiency by recovering residual heat.',
+    specs: { 'Water In': '~80\u00b0C', 'Water Out': '~190\u00b0C', 'Gas Side': 'Lowest temp zone', 'Type': 'Fin-tube' }
+  },
+  steamDrum: {
+    name: 'Steam Drum', category: 'boiler', color: 0xffdd44,
+    desc: 'Separates steam from the water-steam mixture coming from the evaporator. Dry steam goes to the superheater, while water recirculates. Located at the highest point of the boiler.',
+    specs: { 'Pressure': '2.13 MPa', 'Temp': '~215\u00b0C', 'Function': 'Steam-water separation', 'Level Control': 'Automatic' }
+  },
+  turbine: {
+    name: 'Steam Turbine', category: 'power', color: 0x00ccff,
+    desc: 'Multi-stage steam turbine converts the thermal energy of superheated steam into rotational mechanical energy. Exhausts steam to the condenser for the closed-loop Rankine cycle.',
+    specs: { 'Inlet Steam': '380\u00b0C, 1.96 MPa', 'Type': 'Condensing', 'Exhaust': 'Vacuum condenser', 'Stages': 'Multi-stage' }
+  },
+  generator: {
+    name: 'Generator', category: 'power', color: 0x00ff88,
+    desc: 'Converts the mechanical energy from the turbine into electrical power. Rated capacity 18 MW supplies 73% of the total plant power demand (NPC power grid).',
+    specs: { 'Rated Output': '18 MW', 'Grid': 'NPC 13.8kV', 'Efficiency': '~97%', 'Type': 'Synchronous' }
+  },
+  condenser: {
+    name: 'Vacuum Condenser', category: 'cooling', color: 0x4488ff,
+    desc: 'Condenses exhaust steam from the turbine back into water using sea water cooling. Maintains vacuum conditions to maximize turbine efficiency.',
+    specs: { 'Type': 'Surface condenser', 'Coolant': 'Sea water', 'Vacuum': '~5 kPa', 'Condensate': '~40\u00b0C' }
+  },
+  condensatePump: {
+    name: 'Condensate Pump', category: 'cooling', color: 0x6699cc,
+    desc: 'Pumps the condensate from the vacuum condenser to the deionized water treatment system and back to the boiler feedwater system.',
+    specs: { 'Suction': '~40\u00b0C', 'Discharge': 'To treatment', 'Type': 'Centrifugal', 'Speed': 'Variable' }
+  },
+  feedPump: {
+    name: 'Feed Water Pump', category: 'boiler', color: 0x66ccff,
+    desc: 'High-pressure pump that feeds treated water into the boiler economizer. Must overcome the boiler pressure to maintain flow.',
+    specs: { 'Discharge Press': '2.4 MPa', 'Type': 'Multi-stage centrifugal', 'Flow': '80 t/h', 'Variable Speed': 'Yes' }
+  },
+  seaWaterPump: {
+    name: 'Sea Water Pump', category: 'cooling', color: 0x3366aa,
+    desc: 'Draws sea water for cooling the condenser. Large volume flow to maintain proper condenser vacuum and heat rejection.',
+    specs: { 'Source': 'Deep well / Sea', 'Flow Rate': 'High volume', 'Function': 'Condenser cooling', 'Discharge': 'To ocean' }
+  },
+  deionizedTank: {
+    name: 'Deionized Water Treatment', category: 'cooling', color: 0x88ccff,
+    desc: 'Treats and purifies the condensate to boiler-quality feedwater. Removes dissolved minerals and gases to prevent scaling and corrosion.',
+    specs: { 'Type': 'Deionization', 'Quality': 'Boiler grade', 'Storage': 'Buffer tank', 'Chemical Dosing': 'Yes' }
+  },
+  exhaustStack: {
+    name: 'Exhaust Stack', category: 'process', color: 0x888888,
+    desc: 'Releases the cooled exhaust gases to atmosphere after passing through the boiler heat recovery sections. Height ensures proper dispersion.',
+    specs: { 'Height': '~30m', 'Gas Out': '~150\u00b0C', 'Draft': 'Induced fan', 'Emission Control': 'Bag filter' }
+  },
+  inducedFan: {
+    name: 'Induced Draft Fan', category: 'process', color: 0x999999,
+    desc: 'Creates the draft to pull exhaust gases through the boiler and sinter cooler. Maintains slight negative pressure in the gas path.',
+    specs: { 'Type': 'Centrifugal', 'Function': 'Gas flow', 'Control': 'VFD', 'Location': 'Downstream of boiler' }
+  },
+  coolingFan: {
+    name: 'Cooling Fan', category: 'cooling', color: 0x5588cc,
+    desc: 'Provides forced air circulation through the sinter cooler. Multiple fans ensure uniform cooling and maximize heat recovery.',
+    specs: { 'Type': 'Axial flow', 'Number': 'Multiple', 'Function': 'Forced cooling', 'Flow': 'Through sinter bed' }
+  },
+  powerSupply: {
+    name: 'Power Supply (NPC)', category: 'process', color: 0x44ff44,
+    desc: 'External power grid connection. The plant receives 27% from external grid and supplies 73% from sinter heat recovery to all PSC plant operations.',
+    specs: { 'Grid Voltage': '13.8 kV / 33 kV', 'External': '27%', 'SHR Supply': '73%', 'Total Plant': '~18 MW rated' }
+  }
+};
+
+let scene, camera, renderer, controls;
+let components = {};
+let flowParticles = [];
+let flowEnabled = true;
+let raycaster, mouse;
+let selectedComponent = null;
+let hoveredComponent = null;
+let clock = new THREE.Clock();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a1a);
+  scene.fog = new THREE.FogExp2(0x0a0a1a, 0.0015);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(40, 30, 50);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.body.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 10;
+  controls.maxDistance = 150;
+  controls.target.set(0, 5, 0);
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  setupLighting();
+  buildScene();
+  createFlowParticles();
+  setupUI();
+  setupInteraction();
+
+  window.addEventListener('resize', onResize);
+
+  const loadBar = document.getElementById('loading-bar');
+  loadBar.style.width = '100%';
+  document.getElementById('loading-text').textContent = 'Ready';
+  setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 600);
+
+  animate();
+}
+
+function setupLighting() {
+  const ambient = new THREE.AmbientLight(0x334466, 0.6);
+  scene.add(ambient);
+
+  const dir = new THREE.DirectionalLight(0xffeedd, 1.2);
+  dir.position.set(30, 40, 20);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048, 2048);
+  dir.shadow.camera.near = 0.5;
+  dir.shadow.camera.far = 100;
+  dir.shadow.camera.left = -40;
+  dir.shadow.camera.right = 40;
+  dir.shadow.camera.top = 40;
+  dir.shadow.camera.bottom = -40;
+  scene.add(dir);
+
+  const hemi = new THREE.HemisphereLight(0x4488ff, 0x223344, 0.4);
+  scene.add(hemi);
+
+  const rimLight = new THREE.DirectionalLight(0x00aaff, 0.3);
+  rimLight.position.set(-20, 10, -20);
+  scene.add(rimLight);
+}
+
+function makeMat(color, emissiveIntensity = 0.1) {
+  return new THREE.MeshStandardMaterial({
+    color, metalness: 0.6, roughness: 0.35,
+    emissive: color, emissiveIntensity
+  });
+}
+
+function makeGlowMat(color) {
+  return new THREE.MeshStandardMaterial({
+    color, metalness: 0.3, roughness: 0.2,
+    emissive: color, emissiveIntensity: 0.4, transparent: true, opacity: 0.85
+  });
+}
+
+function buildScene() {
+  const grid = new THREE.GridHelper(100, 50, 0x112233, 0x0a1522);
+  grid.position.y = -0.01;
+  scene.add(grid);
+
+  const groundGeo = new THREE.PlaneGeometry(120, 120);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x0a0f1a, metalness: 0.1, roughness: 0.9 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  buildSinterMachine();
+  buildCooler();
+  buildHoodFrontPanel();
+  buildBoiler();
+  buildEvaporator();
+  buildEconomizer();
+  buildSteamDrum();
+  buildTurbine();
+  buildGenerator();
+  buildCondenser();
+  buildPumps();
+  buildDeionizedTank();
+  buildExhaustStack();
+  buildRiver();
+  buildPiping();
+  buildSuperheaterToTurbinePipe();
+  buildEvaporatorToSteamDrumPipe();
+  buildLabels();
+}
+
+function createBox(w, h, d, color, pos, label) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mat = makeMat(color);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(...pos);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { id: label };
+  scene.add(mesh);
+  components[label] = mesh;
+  return mesh;
+}
+
+function createCylinder(rTop, rBot, h, color, pos, label, segments = 16) {
+  const geo = new THREE.CylinderGeometry(rTop, rBot, h, segments);
+  const mat = makeMat(color);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(...pos);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { id: label };
+  scene.add(mesh);
+  components[label] = mesh;
+  return mesh;
+}
+
+function createLinearPipe(points, color, radius) {
+  radius = radius || 0.25;
+  const group = new THREE.Group();
+  const mat = makeMat(color, 0.35);
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const dz = b[2] - a[2];
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const mx = (a[0] + b[0]) / 2;
+    const my = (a[1] + b[1]) / 2;
+    const mz = (a[2] + b[2]) / 2;
+
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 10), mat);
+    seg.position.set(mx, my, mz);
+    if (Math.abs(dx) > 0.001) {
+      seg.rotation.z = Math.PI / 2;
+    } else if (Math.abs(dz) > 0.001) {
+      seg.rotation.x = Math.PI / 2;
+    }
+    seg.castShadow = true;
+    group.add(seg);
+
+    if (i > 0) {
+      const prev = points[i - 1];
+      const pDx = a[0] - prev[0];
+      const pDy = a[1] - prev[1];
+      const pDz = a[2] - prev[2];
+      const elbow = new THREE.Mesh(
+        new THREE.TorusGeometry(radius * 2.2, radius, 8, 12, Math.PI / 2),
+        mat
+      );
+      elbow.position.set(a[0], a[1], a[2]);
+
+      const horizontal = Math.abs(pDx) > 0.001 || Math.abs(pDz) > 0.001;
+      const goingUp = dy > 0.001;
+      const goingDown = dy < -0.001;
+
+      if (Math.abs(pDx) > 0.001 && Math.abs(dy) > 0.001) {
+        elbow.rotation.z = goingUp ? -Math.PI / 2 : Math.PI / 2;
+      } else if (Math.abs(pDz) > 0.001 && Math.abs(dy) > 0.001) {
+        elbow.rotation.x = goingUp ? Math.PI / 2 : -Math.PI / 2;
+      } else if (Math.abs(pDx) > 0.001 && Math.abs(dz) > 0.001) {
+        elbow.rotation.y = dz > 0 ? Math.PI / 2 : -Math.PI / 2;
+      } else if (Math.abs(dy) > 0.001 && Math.abs(dz) > 0.001) {
+        elbow.rotation.z = dz > 0 ? 0 : Math.PI;
+      }
+
+      elbow.castShadow = true;
+      group.add(elbow);
+    }
+  }
+  return group;
+}
+
+function buildSinterMachine() {
+  createBox(20, 3, 10, 0xff6b35, [-25, 2.5, 0], 'sinterMachine');
+}
+
+function buildCooler() {
+  createBox(14, 3.5, 10, 0xff8844, [-10, 2.75, 0], 'cooler');
+}
+
+function buildHoodFrontPanel() {
+  const panelMat = makeMat(0xff6b35);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(36, 4, 0.2), panelMat);
+  panel.position.set(-18, 2.6, -5.15);
+  panel.castShadow = true;
+  scene.add(panel);
+}
+
+function buildBoiler() {
+  const shellMat = new THREE.MeshStandardMaterial({
+    color: 0xffcc00, metalness: 0.5, roughness: 0.4,
+    transparent: true, opacity: 0.15, side: THREE.DoubleSide
+  });
+  const shellGeo = new THREE.BoxGeometry(12, 14, 8);
+  const shell = new THREE.Mesh(shellGeo, shellMat);
+  shell.position.set(5, 8, 0);
+  shell.castShadow = true;
+  shell.receiveShadow = true;
+  scene.add(shell);
+
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xddaa00, transparent: true, opacity: 0.5 });
+  const edges = new THREE.EdgesGeometry(shellGeo);
+  const wireframe = new THREE.LineSegments(edges, edgeMat);
+  wireframe.position.set(5, 8, 0);
+  scene.add(wireframe);
+
+  components.boiler = shell;
+
+  const stackGeo = new THREE.CylinderGeometry(0.8, 1.2, 6, 16);
+  const stackMat = makeMat(0x999999, 0.05);
+  const stack = new THREE.Mesh(stackGeo, stackMat);
+  stack.position.set(5, 17, 0);
+  stack.castShadow = true;
+
+  const superGroup = new THREE.Group();
+  superGroup.userData = { id: 'superheater' };
+  const sFrameMat = makeMat(0x882222, 0.05);
+  const sFrameW = 10, sFrameH = 2.8, sFrameD = 6, sThick = 0.15;
+
+  superGroup.add(new THREE.Mesh(new THREE.BoxGeometry(sFrameW, sFrameH, sThick), sFrameMat).translateX(5).translateY(13.5).translateZ(-sFrameD / 2));
+  superGroup.add(new THREE.Mesh(new THREE.BoxGeometry(sThick, sFrameH, sFrameD), sFrameMat).translateX(5 - sFrameW / 2).translateY(13.5));
+  superGroup.add(new THREE.Mesh(new THREE.BoxGeometry(sThick, sFrameH, sFrameD), sFrameMat).translateX(5 + sFrameW / 2).translateY(13.5));
+
+  const sCoilMat = new THREE.MeshStandardMaterial({ color: 0xff4444, metalness: 0.8, roughness: 0.2, emissive: 0xff4444, emissiveIntensity: 0.25 });
+  const sCoilW = sFrameW * 0.85, sCoilH = sFrameH * 0.75, sCoilD = sFrameD * 0.85;
+  for (let r = 0; r < 4; r++) {
+    const y = 13.5 - sCoilH / 2 + (r + 0.5) * (sCoilH / 4);
+    for (let c = 0; c < 5; c++) {
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, sCoilD, 12), sCoilMat);
+      tube.position.set(5 - sCoilW / 2 + (c + 0.5) * (sCoilW / 5), y, 0);
+      tube.rotation.x = Math.PI / 2;
+      superGroup.add(tube);
+    }
+  }
+  scene.add(superGroup);
+  components.superheater = superGroup;
+}
+
+function buildEvaporator() {
+  const coilGroup = new THREE.Group();
+  coilGroup.userData = { id: 'evaporator' };
+
+  const frameMat = makeMat(0x666666, 0.05);
+  const frameW = 10, frameH = 3.5, frameD = 6;
+  const thickness = 0.2;
+
+  const topPlate = new THREE.Mesh(new THREE.BoxGeometry(frameW + 0.4, thickness, frameD + 0.2), frameMat);
+  topPlate.position.set(5, 8.5 + frameH / 2 + thickness / 2, 0);
+  coilGroup.add(topPlate);
+
+  const bottomPlate = new THREE.Mesh(new THREE.BoxGeometry(frameW + 0.4, thickness, frameD + 0.2), frameMat);
+  bottomPlate.position.set(5, 8.5 - frameH / 2 - thickness / 2, 0);
+  coilGroup.add(bottomPlate);
+
+  const leftHeader = new THREE.Mesh(new THREE.BoxGeometry(thickness * 1.5, frameH + thickness * 2, frameD + 0.2), frameMat);
+  leftHeader.position.set(5 - frameW / 2 - thickness * 0.75, 8.5, 0);
+  coilGroup.add(leftHeader);
+
+  const copperMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.9, roughness: 0.15, emissive: 0xb87333, emissiveIntensity: 0.15 });
+  const rows = 8;
+  const tubesPerRow = 6;
+  const coilW = frameW * 0.9;
+  const coilH = frameH * 0.85;
+  const coilD = frameD * 0.9;
+  const tubeRadius = 0.12;
+  const tubeSpacing = coilD / (tubesPerRow + 1);
+  const rowSpacing = coilH / (rows - 1);
+
+  for (let r = 0; r < rows; r++) {
+    const y = 8.5 - coilH / 2 + r * rowSpacing;
+
+    const tubeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, coilW, 12);
+    const tube = new THREE.Mesh(tubeGeo, copperMat);
+    tube.position.set(5, y, 0);
+    tube.rotation.z = Math.PI / 2;
+    tube.castShadow = true;
+    coilGroup.add(tube);
+
+    if (r < rows - 1) {
+      const nextY = 8.5 - coilH / 2 + (r + 1) * rowSpacing;
+      const bendRadius = (nextY - y) / 2;
+      const bendCenterY = (y + nextY) / 2;
+
+      const bendGeo = new THREE.TorusGeometry(bendRadius, tubeRadius, 8, 12, Math.PI);
+      const bend = new THREE.Mesh(bendGeo, copperMat);
+      bend.position.set(5 + coilW / 2, bendCenterY, 0);
+      bend.rotation.z = Math.PI / 2;
+      bend.castShadow = true;
+      coilGroup.add(bend);
+    }
+  }
+
+  const finMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.7, roughness: 0.25, transparent: true, opacity: 0.35 });
+  const finCount = Math.floor(coilW / 0.15);
+  const finSpacing = coilW / finCount;
+
+  for (let f = 0; f < finCount; f++) {
+    const x = 5 - coilW / 2 + f * finSpacing + finSpacing / 2;
+    const finGeo = new THREE.BoxGeometry(0.02, coilH * 0.95, coilD * 0.95);
+    const fin = new THREE.Mesh(finGeo, finMat);
+    fin.position.set(x, 8.5, 0);
+    coilGroup.add(fin);
+  }
+
+  scene.add(coilGroup);
+  components.evaporator = coilGroup;
+}
+
+function buildEconomizer() {
+  const coilGroup = new THREE.Group();
+  coilGroup.userData = { id: 'economizer' };
+
+  const frameMat = makeMat(0x555555, 0.05);
+  const frameW = 10, frameH = 3, frameD = 6;
+  const thickness = 0.2;
+
+  const topPlate = new THREE.Mesh(new THREE.BoxGeometry(frameW + 0.4, thickness, frameD + 0.2), frameMat);
+  topPlate.position.set(5, 4.25 + frameH / 2 + thickness / 2, 0);
+  coilGroup.add(topPlate);
+
+  const bottomPlate = new THREE.Mesh(new THREE.BoxGeometry(frameW + 0.4, thickness, frameD + 0.2), frameMat);
+  bottomPlate.position.set(5, 4.25 - frameH / 2 - thickness / 2, 0);
+  coilGroup.add(bottomPlate);
+
+  const leftHeader = new THREE.Mesh(new THREE.BoxGeometry(thickness * 1.5, frameH + thickness * 2, frameD + 0.2), frameMat);
+  leftHeader.position.set(5 - frameW / 2 - thickness * 0.75, 4.25, 0);
+  coilGroup.add(leftHeader);
+
+  const copperMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.9, roughness: 0.15, emissive: 0xb87333, emissiveIntensity: 0.15 });
+  const rows = 7;
+  const coilW = frameW * 0.9;
+  const coilH = frameH * 0.85;
+  const coilD = frameD * 0.9;
+  const tubeRadius = 0.11;
+  const rowSpacing = coilH / (rows - 1);
+
+  for (let r = 0; r < rows; r++) {
+    const y = 4.25 - coilH / 2 + r * rowSpacing;
+
+    const tubeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, coilW, 12);
+    const tube = new THREE.Mesh(tubeGeo, copperMat);
+    tube.position.set(5, y, 0);
+    tube.rotation.z = Math.PI / 2;
+    tube.castShadow = true;
+    coilGroup.add(tube);
+
+    if (r < rows - 1) {
+      const nextY = 4.25 - coilH / 2 + (r + 1) * rowSpacing;
+      const bendRadius = (nextY - y) / 2;
+      const bendCenterY = (y + nextY) / 2;
+
+      const bendGeo = new THREE.TorusGeometry(bendRadius, tubeRadius, 8, 12, Math.PI);
+      const bend = new THREE.Mesh(bendGeo, copperMat);
+      bend.position.set(5 + coilW / 2, bendCenterY, 0);
+      bend.rotation.z = Math.PI / 2;
+      bend.castShadow = true;
+      coilGroup.add(bend);
+    }
+  }
+
+  const finMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.7, roughness: 0.25, transparent: true, opacity: 0.35 });
+  const finCount = Math.floor(coilW / 0.15);
+  const finSpacing = coilW / finCount;
+
+  for (let f = 0; f < finCount; f++) {
+    const x = 5 - coilW / 2 + f * finSpacing + finSpacing / 2;
+    const finGeo = new THREE.BoxGeometry(0.02, coilH * 0.95, coilD * 0.95);
+    const fin = new THREE.Mesh(finGeo, finMat);
+    fin.position.set(x, 4.25, 0);
+    coilGroup.add(fin);
+  }
+
+  scene.add(coilGroup);
+  components.economizer = coilGroup;
+}
+
+function buildSteamDrum() {
+  createCylinder(2.5, 2.5, 8, 0xffdd44, [12, 11, 0], 'steamDrum', 20);
+  components.steamDrum.rotation.z = Math.PI / 2;
+  components.steamDrum.rotation.y = Math.PI / 2;
+}
+
+function buildTurbine() {
+  const body = createCylinder(2, 3.5, 8, 0x00ccff, [22, 5, 0], 'turbine', 20);
+  body.rotation.z = Math.PI / 2;
+}
+
+function buildGenerator() {
+  createCylinder(3, 3, 5, 0x00ff88, [32, 5, 0], 'generator', 20);
+  components.generator.rotation.z = Math.PI / 2;
+
+  const innerGeo = new THREE.CylinderGeometry(2, 2, 5.1, 16);
+  const innerMat = makeGlowMat(0x44ffaa);
+  const inner = new THREE.Mesh(innerGeo, innerMat);
+  inner.position.set(32, 5, 0);
+  inner.rotation.z = Math.PI / 2;
+  inner.castShadow = true;
+  scene.add(inner);
+}
+
+
+function buildCondenser() {
+  createCylinder(2.5, 2.5, 3, 0x4488ff, [32, 1.5, 8], 'condenser', 16);
+  components.condenser.rotation.x = Math.PI / 2;
+
+  const shellGeo = new THREE.BoxGeometry(6, 4, 5);
+  const shellMat = makeMat(0x3366aa);
+  const shell = new THREE.Mesh(shellGeo, shellMat);
+  shell.position.set(32, 2, 8);
+  shell.castShadow = true;
+  shell.receiveShadow = true;
+  shell.userData = { id: 'condenser' };
+  scene.add(shell);
+}
+
+function buildPumps() {
+  createCylinder(0.8, 0.8, 1.5, 0x6699cc, [28, 1.2, 8], 'condensatePump', 12);
+  createCylinder(0.8, 0.8, 1.5, 0x66ccff, [0, 1.2, 5], 'feedPump', 12);
+  createCylinder(1, 1, 1.8, 0x3366aa, [32, 1.4, 14], 'seaWaterPump', 12);
+
+  // Cooling fans - evenly distributed on the sintering machine side
+  const fanRadius = 0.9;
+  const fanSpacing = 5.0;
+  const fanCount = 3;
+  const fanCenterX = -25;
+  const fanStartX = fanCenterX - (fanCount - 1) * fanSpacing / 2;
+  
+  const fanGroup = new THREE.Group();
+  fanGroup.userData = { id: 'coolingFan' };
+  
+  for (let i = 0; i < fanCount; i++) {
+    const fanX = fanStartX + i * fanSpacing;
+    
+    // Fan housing (outer ring)
+    const housingGeo = new THREE.TorusGeometry(fanRadius, 0.12, 16, 32);
+    const housingMat = makeMat(0x666666, 0.1);
+    const housing = new THREE.Mesh(housingGeo, housingMat);
+    housing.position.set(fanX, 2, -6.4);
+    housing.rotation.x = Math.PI / 2;
+    housing.castShadow = true;
+    scene.add(housing);
+    
+    // Fan hub
+    const hubGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 12);
+    const hubMat = makeMat(0x444444, 0.2);
+    const hub = new THREE.Mesh(hubGeo, hubMat);
+    hub.position.set(fanX, 2, -6.4);
+    hub.rotation.x = Math.PI / 2;
+    scene.add(hub);
+    
+    // Fan blades
+    const bladeCount = 5;
+    for (let b = 0; b < bladeCount; b++) {
+      const bladeGeo = new THREE.BoxGeometry(0.6, 0.06, fanRadius * 0.65);
+      const bladeMat = makeMat(0x5588cc, 0.2);
+      const blade = new THREE.Mesh(bladeGeo, bladeMat);
+      const angle = (b / bladeCount) * Math.PI * 2;
+      blade.position.set(
+        fanX + Math.cos(angle) * fanRadius * 0.38,
+        2 + Math.sin(angle) * fanRadius * 0.38,
+        -6.4
+      );
+      blade.rotation.z = angle;
+      blade.castShadow = true;
+      scene.add(blade);
+    }
+    
+    // Main fan cylinder (body)
+    const fanCyl = createCylinder(fanRadius, fanRadius, 0.6, 0x5588cc, [fanX, 2, -6], 'coolingFan_tmp', 24);
+    fanGroup.add(fanCyl);
+  }
+  scene.add(fanGroup);
+  components.coolingFan = fanGroup;
+}
+
+function buildDeionizedTank() {
+  const group = new THREE.Group();
+  group.userData = { id: 'deionizedTank' };
+  const cyl = createCylinder(1.8, 1.8, 4, 0x88ccff, [22, 2, 12], 'deionizedTank_tmp', 16);
+  const box = createBox(3, 2, 3, 0x6699bb, [22, 1, 16], 'deionizedTank_tmp');
+  scene.remove(cyl); scene.remove(box);
+  cyl.position.set(0, 2, 0); box.position.set(0, 1, 4);
+  group.add(cyl); group.add(box);
+  group.position.set(22, 0, 12);
+  scene.add(group);
+  components.deionizedTank = group;
+}
+
+function buildExhaustStack() {
+  const group = new THREE.Group();
+  group.userData = { id: 'exhaustStack' };
+  const base = createCylinder(1.5, 2, 4, 0x777777, [-17, 2, 0], 'exhaustStack_tmp');
+  const stack = createCylinder(1.2, 1.5, 12, 0x888888, [-17, 10, 0], 'exhaustStack_tmp');
+  const topRing = createCylinder(1.5, 1.2, 0.5, 0x999999, [-17, 16.5, 0], 'exhaustStack_tmp');
+  group.position.set(-17, 0, 0);
+  scene.add(group);
+  // Remove the individual components from scene and add to group
+  [base, stack, topRing].forEach(m => {
+    scene.remove(m);
+    m.position.set(m.position.x + 17, m.position.y, m.position.z);
+    group.add(m);
+  });
+  components.exhaustStack = group;
+}
+
+function buildRiver() {
+  const riverGeo = new THREE.PlaneGeometry(14, 20);
+  const riverMat = new THREE.MeshBasicMaterial({ color: 0x2277dd });
+  const river = new THREE.Mesh(riverGeo, riverMat);
+  river.rotation.x = -Math.PI / 2;
+  river.position.set(36, 0.2, 14);
+  scene.add(river);
+
+  const bankGeo = new THREE.PlaneGeometry(18, 24);
+  const bankMat = new THREE.MeshBasicMaterial({ color: 0x2a4422 });
+  const bank = new THREE.Mesh(bankGeo, bankMat);
+  bank.rotation.x = -Math.PI / 2;
+  bank.position.set(36, 0.15, 14);
+  scene.add(bank);
+
+  for (let i = 0; i < 30; i++) {
+    const waveGeo = new THREE.BoxGeometry(6 + Math.random() * 5, 0.08, 0.2);
+    const waveMat = new THREE.MeshBasicMaterial({ color: 0x66bbee });
+    const wave = new THREE.Mesh(waveGeo, waveMat);
+    wave.position.set(31 + Math.random() * 10, 0.25, 5 + i * 0.8);
+    scene.add(wave);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    const dropGeo = new THREE.SphereGeometry(0.12, 6, 6);
+    const dropMat = new THREE.MeshBasicMaterial({ color: 0x88ccff });
+    const drop = new THREE.Mesh(dropGeo, dropMat);
+    drop.position.set(30 + Math.random() * 12, 0.3, 5 + Math.random() * 18);
+    scene.add(drop);
+  }
+}
+
+
+function buildPiping() {
+  const pipes = [
+    { points: [[-18, 4.5, 0], [-18, 8, 0], [-3, 8, 0], [-3, 12, 0], [2, 12, 0], [2, 14.5, 0], [5, 14.5, 0], [5, 15, 0]], color: 0xff4444 },
+    { points: [[12, 11, 3], [12, 11, 0], [22, 11, 0], [22, 6, 0]], color: 0xffaa00 },
+    { points: [[22, 5, 0], [25, 5, 0], [30, 5, 0]], color: 0x00ccff },
+    { points: [[32, 1.5, 8], [32, 1, 8], [22, 1, 8], [22, 1, 12], [22, 2, 12]], color: 0x88ccff },
+    { points: [[0, 2, 5], [8, 2, 5], [8, 2, 12], [22, 2, 12], [22, 4, 12]], color: 0x44aaff },
+    { points: [[-10, 3.5, 0], [-10, 3.5, -2], [-10, 6, -2], [-10, 6, 2], [-10, 5, 2]], color: 0x5588cc },
+    { points: [[42, 0.3, 8], [32, 0.3, 8], [32, 1.5, 8]], color: 0x3366aa },
+  ];
+
+  pipes.forEach(p => {
+    scene.add(createLinearPipe(p.points, p.color, 0.3));
+  });
+}
+
+function buildSuperheaterToTurbinePipe() {
+  const pipeColor = 0xff6600;
+  const r = 0.3;
+
+  const horizLen = 9;
+  const horiz = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, horizLen, 8),
+    makeMat(pipeColor, 0.2)
+  );
+  horiz.position.set(14.5, 13.5, 0);
+  horiz.rotation.z = Math.PI / 2;
+  horiz.castShadow = true;
+  scene.add(horiz);
+
+  const vertLen = 8.5;
+  const vert = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, vertLen, 8),
+    makeMat(pipeColor, 0.2)
+  );
+  vert.position.set(19, 9.25, 0);
+  vert.castShadow = true;
+  scene.add(vert);
+
+  const elbow = new THREE.Mesh(
+    new THREE.TorusGeometry(r * 2, r, 8, 12, Math.PI / 2),
+    makeMat(pipeColor, 0.2)
+  );
+  elbow.position.set(19, 13.5, 0);
+  elbow.rotation.z = Math.PI;
+  elbow.castShadow = true;
+  scene.add(elbow);
+
+  const flange1 = new THREE.Mesh(
+    new THREE.CylinderGeometry(r * 1.8, r * 1.8, 0.15, 12),
+    makeMat(pipeColor, 0.2)
+  );
+  flange1.position.set(10, 13.5, 0);
+  flange1.rotation.z = Math.PI / 2;
+  scene.add(flange1);
+
+  const flange2 = new THREE.Mesh(
+    new THREE.CylinderGeometry(r * 1.8, r * 1.8, 0.15, 12),
+    makeMat(pipeColor, 0.2)
+  );
+  flange2.position.set(19, 5, 0);
+  scene.add(flange2);
+}
+
+function buildEvaporatorToSteamDrumPipe() {
+  const r = 0.4;
+
+  const outletBox = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 1.4, 1.2),
+    makeMat(0xffaa00, 0.45)
+  );
+  outletBox.position.set(9.8, 10.35, 0);
+  outletBox.castShadow = true;
+  scene.add(outletBox);
+
+  const pipe = createLinearPipe([
+    [10.1, 10.35, 0],
+    [10.1, 14, 0],
+    [14, 14, 0],
+    [14, 11, 0]
+  ], 0xffaa00, r);
+  scene.add(pipe);
+
+  const flange = new THREE.Mesh(
+    new THREE.CylinderGeometry(r * 2, r * 2, 0.25, 16),
+    makeMat(0xffaa00, 0.45)
+  );
+  flange.position.set(14, 11.1, 0);
+  scene.add(flange);
+}
+
+function getComponentPosition(comp) {
+  if (comp.type === 'Group') {
+    // Compute center from children bounding box
+    const box = new THREE.Box3().setFromObject(comp);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    return center;
+  }
+  return comp.position.clone();
+}
+
+function buildLabels() {
+  Object.keys(components).forEach(key => {
+    const comp = components[key];
+    if (!comp) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 64;
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, 512, 64);
+    ctx.font = 'bold 28px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(componentData[key]?.name || key, 256, 42);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.85 });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(8, 1, 1);
+    const pos = getComponentPosition(comp);
+    sprite.position.copy(pos);
+    sprite.position.y += 3;
+    scene.add(sprite);
+  });
+}
+
+function createFlowParticles() {
+  const flowPaths = [
+    { color: 0xff4444, points: [[-18, 4.5, 0], [-18, 8, 0], [-3, 8, 0], [-3, 12, 0], [2, 12, 0], [2, 14.5, 0], [5, 14.5, 0], [5, 15, 0]], count: 30, label: 'hotGas' },
+    { color: 0xffaa00, points: [[5, 7, 0], [5, 10, 0], [10, 10, 0], [10, 14, 0], [14, 14, 0], [14, 11, 0]], count: 25, label: 'steam' },
+    { color: 0x00ccff, points: [[12, 11, 0], [22, 11, 0], [22, 6, 0], [28, 5, 0]], count: 20, label: 'steamToTurbine' },
+    { color: 0x44aaff, points: [[0, 2, 5], [8, 2, 5], [8, 2, 12], [22, 2, 12], [22, 4, 12]], count: 20, label: 'feedwater' },
+    { color: 0x88ccff, points: [[32, 1.5, 8], [32, 1, 8], [22, 1, 8], [22, 1, 12], [22, 2, 12]], count: 15, label: 'condensate' },
+    { color: 0x3366aa, points: [[42, 0.3, 8], [32, 0.3, 8], [32, 1.5, 8]], count: 15, label: 'seawater' },
+  ];
+
+  flowPaths.forEach(flow => {
+    const curve = new THREE.CatmullRomCurve3(flow.points.map(p => new THREE.Vector3(...p)));
+    for (let i = 0; i < flow.count; i++) {
+      const geo = new THREE.SphereGeometry(0.18, 6, 6);
+      const mat = new THREE.MeshBasicMaterial({ color: flow.color, transparent: true, opacity: 0.8 });
+      const particle = new THREE.Mesh(geo, mat);
+      particle.userData = { curve, t: i / flow.count, speed: 0.15 + Math.random() * 0.05, label: flow.label };
+      scene.add(particle);
+      flowParticles.push(particle);
+    }
+  });
+}
+
+function setupUI() {
+  const categories = { power: 'power-buttons', boiler: 'boiler-buttons', cooling: 'cooling-buttons', process: 'process-buttons' };
+  Object.keys(componentData).forEach(key => {
+    const data = componentData[key];
+    const container = document.getElementById(categories[data.category]);
+    if (!container) return;
+    const btn = document.createElement('button');
+    btn.className = 'component-btn';
+    btn.innerHTML = `<span class="dot" style="background:#${data.color.toString(16).padStart(6, '0')}"></span>${data.name}`;
+    btn.onclick = () => focusComponent(key);
+    container.appendChild(btn);
+  });
+}
+
+function setupInteraction() {
+  renderer.domElement.addEventListener('click', onCanvasClick);
+  renderer.domElement.addEventListener('mousemove', onCanvasHover);
+}
+
+function onCanvasClick(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const meshes = Object.values(components);
+  const intersects = raycaster.intersectObjects(meshes, true);
+  if (intersects.length > 0) {
+    let obj = intersects[0].object;
+    while (obj && !obj.userData.id && obj.parent) {
+      obj = obj.parent;
+    }
+    const id = obj.userData.id;
+    if (id && componentData[id]) showInfo(id);
+  }
+}
+
+function onCanvasHover(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const meshes = Object.values(components);
+  const intersects = raycaster.intersectObjects(meshes, true);
+  if (intersects.length > 0) {
+    // Walk up to find the root group with userData.id
+    let obj = intersects[0].object;
+    while (obj && !obj.userData.id && obj.parent) {
+      obj = obj.parent;
+    }
+    if (hoveredComponent !== obj) {
+      // Reset previous hover
+      if (hoveredComponent) {
+        setEmissive(hoveredComponent, 0.1);
+      }
+      hoveredComponent = obj;
+      setEmissive(hoveredComponent, 0.6);
+      renderer.domElement.style.cursor = 'pointer';
+    }
+  } else {
+    if (hoveredComponent) {
+      setEmissive(hoveredComponent, 0.1);
+    }
+    hoveredComponent = null;
+    renderer.domElement.style.cursor = 'default';
+  }
+}
+
+function focusComponent(id) {
+  const comp = components[id];
+  if (!comp) return;
+  selectedComponent = id;
+
+  document.querySelectorAll('.component-btn').forEach(b => b.classList.remove('active'));
+  const buttons = document.querySelectorAll('.component-btn');
+  buttons.forEach(b => {
+    if (b.textContent.includes(componentData[id]?.name)) b.classList.add('active');
+  });
+
+  const pos = getComponentPosition(comp);
+  const targetPos = new THREE.Vector3(pos.x + 15, pos.y + 10, pos.z + 15);
+  animateCamera(targetPos, pos);
+  showInfo(id);
+}
+
+function animateCamera(newPos, target) {
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 1000;
+  const start = Date.now();
+  function update() {
+    const elapsed = Date.now() - start;
+    const t = Math.min(elapsed / duration, 1);
+    const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    camera.position.lerpVectors(startPos, newPos, ease);
+    controls.target.lerpVectors(startTarget, target, ease);
+    controls.update();
+    if (t < 1) requestAnimationFrame(update);
+  }
+  update();
+}
+
+function showInfo(id) {
+  const data = componentData[id];
+  if (!data) return;
+  const panel = document.getElementById('info-panel');
+  const content = document.getElementById('info-content');
+  let specsHTML = '';
+  Object.entries(data.specs).forEach(([k, v]) => {
+    specsHTML += `<div class="spec"><span class="spec-label">${k}</span><span class="spec-value">${v}</span></div>`;
+  });
+  content.innerHTML = `
+    <h2>${data.name}</h2>
+    <span class="tag">${data.category.toUpperCase()}</span>
+    <p>${data.desc}</p>
+    <div class="section-title" style="margin:15px 0 10px">Specifications</div>
+    ${specsHTML}
+  `;
+  panel.classList.add('visible');
+}
+
+function setEmissive(obj, intensity) {
+  if (!obj) return;
+  if (obj.type === 'Group') {
+    obj.children.forEach(child => {
+      if (child.material && child.material.emissiveIntensity !== undefined) {
+        child.material.emissiveIntensity = intensity;
+      }
+    });
+  } else if (obj.material && obj.material.emissiveIntensity !== undefined) {
+    obj.material.emissiveIntensity = intensity;
+  }
+}
+
+function closeInfo() {
+  document.getElementById('info-panel').classList.remove('visible');
+  document.querySelectorAll('.component-btn').forEach(b => b.classList.remove('active'));
+  selectedComponent = null;
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('toggle-sidebar');
+  sidebar.classList.toggle('collapsed');
+  btn.classList.toggle('shifted');
+}
+
+function toggleFlow() {
+  flowEnabled = !flowEnabled;
+  const toggle = document.getElementById('flow-toggle');
+  if (toggle) toggle.textContent = `Flow: ${flowEnabled ? 'ON' : 'OFF'}`;
+  flowParticles.forEach(p => { p.visible = flowEnabled; });
+}
+
+
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+
+  if (flowEnabled) {
+    flowParticles.forEach(p => {
+      p.userData.t += p.userData.speed * delta;
+      if (p.userData.t > 1) p.userData.t -= 1;
+      const pos = p.userData.curve.getPoint(p.userData.t);
+      p.position.copy(pos);
+      p.material.opacity = 0.5 + Math.sin(p.userData.t * Math.PI) * 0.4;
+    });
+  }
+
+  Object.keys(components).forEach(key => {
+    if (key === selectedComponent && components[key]) {
+      setEmissive(components[key], 0.3 + Math.sin(Date.now() * 0.003) * 0.2);
+    }
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>
