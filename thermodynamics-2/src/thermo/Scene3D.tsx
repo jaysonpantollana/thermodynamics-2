@@ -1105,14 +1105,25 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
       createPipe(scene, p.points, p.radius, p.color);
     });
 
-    // ===== CONDENSATE PUMP → CONDENSER (sweeping arc) =====
+    // ===== CONDENSATE PUMP → CONDENSER (connects to side/end face) =====
+    // Pump platform near condenser front water box
+    const cp2Mat = makeMetalMat(0x445566);
+    const cp2Plat = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.15, 2.5), cp2Mat);
+    cp2Plat.position.set(26, 3.2, 11);
+    scene.add(cp2Plat);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dz]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 3.2, 6), cp2Mat);
+      leg.position.set(26 + dx, 1.6, 11 + dz);
+      scene.add(leg);
+    });
+    // Pump on platform
+    createPump(scene, 26, 3.9, 11, 0.7, 0x2255aa, 'condenserPump');
+    // Pipe from pump to condenser front end face (flat side, not round shell)
     createPipe(scene, [
-      [28, 3.2, 9],
-      [28.5, 3.8, 9],
-      [29.5, 4, 9],
-      [30.5, 3.5, 9],
-      [31.5, 3, 9],
-      [32, 2.5, 9],
+      [26, 3.9, 11],
+      [27, 3.7, 10.3],
+      [27.8, 3.5, 9.6],
+      [28.5, 3.5, 9],
     ], 0.25, 0x5599cc);
 
 
