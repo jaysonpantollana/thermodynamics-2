@@ -1212,22 +1212,14 @@ export default function Scene3D({selectedId, onSelect, flowEnabled}: Props) {
     // Circulation pump on ground-level platform
     createPump(scene, 15.5, 5.5, 6, 1.0, 0xcc3333, 'circPump');
 
-    // Downcomer continuation: pump → evaporator
+    // Pump discharge → Evaporator outlet connection pipe
     createPipe(scene, [
-      [15.5, 3.4, 6],
-      [14, 4, 5],
-      [13, 5, 4],
-      [12, 6.5, 3],
-      [11.8, 8, 2],
-    ], evPipeR, 0xffaa00);
-
-    // Downcomer continuation: pump → evaporator
-    createPipe(scene, [
-      [15, 3.3, 6],
-      [14, 4, 5],
-      [13, 5, 4],
-      [12, 6.5, 3],
-      [11.8, 8, 2],
+      [15.7, 6.65, 6],
+      [15, 7, 4.5],
+      [14, 7.5, 3],
+      [13, 8, 1.5],
+      [12, 8.5, 0.5],
+      [11.8, 8.5, 0],
     ], evPipeR, 0xffaa00);
 
     // ===== ECONOMIZER OUTLET → STEAM DRUM (routes around platform) =====
